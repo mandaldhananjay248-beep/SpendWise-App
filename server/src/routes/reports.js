@@ -1,0 +1,274 @@
+import express from "express";
+import PDFDocument from "pdfkit";
+import Expense from "../models/Expense.js";
+
+const router = express.Router();
+
+// ==========================================
+// DOWNLOAD MONTHLY PDF REPORT
+// ==========================================
+
+router.get("/monthly", async (req, res) => {
+  try {
+    const { month } = req.query;
+
+    const selectedDate = month
+      ? new Date(`${month}-01`)
+      : new Date();
+
+    if (Number.isNaN(selectedDate.getTime())) {
+      return res.status(400).json({
+        message: "Invalid month."
+      });
+    }
+
+    const year = selectedDate.getFullYear();
+    const selectedMonth = selectedDate.getMonth();
+
+    const start = new Date(
+      year,
+      selectedMonth,
+      1
+    );
+
+    const end = new Date(
+      year,
+      selectedMonth + 1,
+      1
+    );
+
+    const expenses = await Expense.find({
+      userId: req.userId,
+      date: {
+        $gte: start,
+        $lt: end
+      }
+    }).sort({
+      date: 1
+    });
+
+    const total = expenses.reduce(
+      (sum, expense) =>
+        sum + expense.amount,
+      0
+    );
+
+    const categoryTotals = {};
+
+    expenses.forEach((expense) => {
+      if (!categoryTotals[expense.category]) {
+        categoryTotals[expense.category] = 0;
+      }
+
+      categoryTotals[expense.category] +=
+        expense.amount;
+    });
+
+    // Create PDF
+
+    const doc = new PDFDocument({
+      margin: 50
+    });
+
+    const monthName = start.toLocaleString(
+      "en-IN",
+      {
+        month: "long",
+        year: "numeric"
+      }
+    );
+
+    res.setHeader(
+      "Content-Type",
+      "application/pdf"
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="SpendWise-${monthName.replace(
+        " ",
+        "-"
+      )}.pdf"`
+    );
+
+    doc.pipe(res);
+
+    // ======================================
+    // HEADER
+    // ======================================
+
+    doc
+      .fontSize(26)
+      .font("Helvetica-Bold")
+      .text("SpendWise");
+
+    doc
+      .fontSize(16)
+      .font("Helvetica")
+      .text("Monthly Expense Report");
+
+    doc.moveDown();
+
+    doc
+      .fontSize(12)
+      .text(`Report Period: ${monthName}`);
+
+    doc.moveDown(2);
+
+    // ======================================
+    // SUMMARY
+    // ======================================
+
+    doc
+      .fontSize(18)
+      .font("Helvetica-Bold")
+      .text("Summary");
+
+    doc.moveDown(0.5);
+
+    doc
+      .fontSize(13)
+      .font("Helvetica")
+      .text(
+        `Total Expenses: ₹${total.toFixed(2)}`
+      );
+
+    doc.text(
+      `Number of Transactions: ${expenses.length}`
+    );
+
+    const average =
+      expenses.length > 0
+        ? total / expenses.length
+        : 0;
+
+    doc.text(
+      `Average Expense: ₹${average.toFixed(2)}`
+    );
+
+    doc.moveDown(2);
+
+    // ======================================
+    // CATEGORY SUMMARY
+    // ======================================
+
+    doc
+      .fontSize(18)
+      .font("Helvetica-Bold")
+      .text("Category Summary");
+
+    doc.moveDown();
+
+    Object.entries(categoryTotals).forEach(
+      ([category, amount]) => {
+
+        doc
+          .fontSize(12)
+          .font("Helvetica")
+          .text(
+            `${category}: ₹${amount.toFixed(2)}`
+          );
+
+      }
+    );
+
+    doc.moveDown(2);
+
+    // ======================================
+    // TRANSACTIONS
+    // ======================================
+
+    doc
+      .fontSize(18)
+      .font("Helvetica-Bold")
+      .text("Transactions");
+
+    doc.moveDown();
+
+    if (expenses.length === 0) {
+
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(
+          "No expenses were recorded for this month."
+        );
+
+    } else {
+
+      expenses.forEach(
+        (expense, index) => {
+
+          const expenseDate =
+            new Date(
+              expense.date
+            ).toLocaleDateString(
+              "en-IN"
+            );
+
+          doc
+            .fontSize(12)
+            .font("Helvetica-Bold")
+            .text(
+              `${index + 1}. ${expense.title}`
+            );
+
+          doc
+            .fontSize(10)
+            .font("Helvetica")
+            .text(
+              `Date: ${expenseDate}`
+            );
+
+          doc.text(
+            `Category: ${expense.category}`
+          );
+
+          doc.text(
+            `Amount: ₹${expense.amount.toFixed(2)}`
+          );
+
+          if (expense.description) {
+            doc.text(
+              `Description: ${expense.description}`
+            );
+          }
+
+          doc.moveDown(0.8);
+
+        }
+      );
+
+    }
+
+    // ======================================
+    // FOOTER
+    // ======================================
+
+    doc.moveDown(2);
+
+    doc
+      .fontSize(9)
+      .text(
+        "Generated by SpendWise Expense Management App"
+      );
+
+    doc.end();
+
+  } catch (error) {
+
+    console.error(error);
+
+    if (!res.headersSent) {
+
+      res.status(500).json({
+        message:
+          "Unable to generate PDF report."
+      });
+
+    }
+
+  }
+});
+
+export default router;
