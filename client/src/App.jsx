@@ -106,7 +106,7 @@ function Login({ onLogin }) {
 
   function googleLogin() {
     const apiUrl = import.meta.env.VITE_API_URL || "/api";
-    window.location.href = `${API_URL}/api/auth/google`;
+    window.location.href = `${apiUrl}/auth/google`;
   }
 
   function demoLogin() {
