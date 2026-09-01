@@ -108,6 +108,8 @@ app.use(
   authRoutes
 );
 
+console.log("✅ Auth routes registered at /api/auth");
+
 
 // ==========================================
 // PROTECTED EXPENSE ROUTES

@@ -16,14 +16,19 @@ const otpStore = new Map();
 // ==========================================
 
 router.get("/google", (req, res, next) => {
+  console.log("[Google Auth] Route accessed");
+  console.log("[Google Auth] Client ID:", !!process.env.GOOGLE_CLIENT_ID);
+  console.log("[Google Auth] Client Secret:", !!process.env.GOOGLE_CLIENT_SECRET);
 
   if (
     !process.env.GOOGLE_CLIENT_ID ||
     !process.env.GOOGLE_CLIENT_SECRET
   ) {
+    console.error("[Google Auth] Missing credentials");
     return res.redirect(`${process.env.CLIENT_URL}/?error=google_not_configured`);
   }
 
+  console.log("[Google Auth] Authenticating with Passport...");
   passport.authenticate("google", {
     scope: ["profile", "email"]
   })(req, res, next);
