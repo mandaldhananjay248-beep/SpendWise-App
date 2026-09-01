@@ -16,22 +16,35 @@ const otpStore = new Map();
 // ==========================================
 
 router.get("/google", (req, res, next) => {
-  console.log("[Google Auth] Route accessed");
-  console.log("[Google Auth] Client ID:", !!process.env.GOOGLE_CLIENT_ID);
-  console.log("[Google Auth] Client Secret:", !!process.env.GOOGLE_CLIENT_SECRET);
+  console.log("[Google Auth] Route accessed at:", new Date().toISOString());
+  console.log("[Google Auth] Full request path:", req.path);
+  console.log("[Google Auth] Full request URL:", req.originalUrl);
+  console.log("[Google Auth] Client ID exists:", !!process.env.GOOGLE_CLIENT_ID);
+  console.log("[Google Auth] Client Secret exists:", !!process.env.GOOGLE_CLIENT_SECRET);
+  console.log("[Google Auth] Client URL:", process.env.CLIENT_URL);
 
   if (
     !process.env.GOOGLE_CLIENT_ID ||
     !process.env.GOOGLE_CLIENT_SECRET
   ) {
-    console.error("[Google Auth] Missing credentials");
-    return res.redirect(`${process.env.CLIENT_URL}/?error=google_not_configured`);
+    console.error("[Google Auth] ❌ Missing Google credentials!");
+    const errorUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/?error=google_not_configured`;
+    console.log("[Google Auth] Redirecting to:", errorUrl);
+    return res.redirect(errorUrl);
   }
 
-  console.log("[Google Auth] Authenticating with Passport...");
-  passport.authenticate("google", {
-    scope: ["profile", "email"]
-  })(req, res, next);
+  console.log("[Google Auth] ✅ Credentials found, authenticating with Passport...");
+  try {
+    passport.authenticate("google", {
+      scope: ["profile", "email"]
+    })(req, res, next);
+  } catch (err) {
+    console.error("[Google Auth] ❌ Error during authentication:", err);
+    res.status(500).json({ 
+      message: "Google authentication failed",
+      error: err.message 
+    });
+  }
 });
 
 

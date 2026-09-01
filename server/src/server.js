@@ -65,23 +65,8 @@ app.use(
 
 app.use(passport.initialize());
 
-app.use("/api", (req, res, next) => {
-  if (req.method === "GET" && req.path === "/auth/google") {
-    return next();
-  }
-
-  if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      message: "Database unavailable. Check the MongoDB connection and Atlas IP allowlist."
-    });
-  }
-
-  next();
-});
-
-
 // ==========================================
-// HEALTH CHECK
+// HEALTH CHECK (NO AUTH REQUIRED)
 // ==========================================
 
 app.get("/", (req, res) => {
@@ -92,15 +77,29 @@ app.get("/", (req, res) => {
       "SpendWise API is running",
 
     status:
-      "success"
+      "success",
+    
+    routes: {
+      auth: "/api/auth",
+      expenses: "/api/expenses",
+      reports: "/api/reports",
+      budgets: "/api/budgets"
+    }
 
   });
 
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+  });
+});
 
 // ==========================================
-// AUTH ROUTES
+// AUTH ROUTES (NO DB CHECK REQUIRED)
 // ==========================================
 
 app.use(
@@ -109,6 +108,20 @@ app.use(
 );
 
 console.log("✅ Auth routes registered at /api/auth");
+
+// ==========================================
+// DATABASE HEALTH CHECK MIDDLEWARE
+// ==========================================
+
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      message: "Database unavailable. Check the MongoDB connection and Atlas IP allowlist."
+    });
+  }
+
+  next();
+});
 
 
 // ==========================================
