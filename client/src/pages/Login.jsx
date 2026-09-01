@@ -51,6 +51,11 @@ function Login() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    window.location.href = `${apiUrl}/auth/google`;
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -137,7 +142,11 @@ function Login() {
           <span>OR</span>
         </div>
 
-        <button className="google-button" type="button">
+        <button 
+          className="google-button" 
+          type="button"
+          onClick={handleGoogleLogin}
+        >
           <span className="google-icon">G</span>
           Continue with Google
         </button>
